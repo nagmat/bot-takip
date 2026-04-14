@@ -4,9 +4,13 @@ Mosaic Visa Randevu Takip Botu — Cloud Versiyonu
 Selenium gerektirmez. Railway, Render, PythonAnywhere'de çalışır.
 """
 
+import os
 import time
+import smtplib
 import requests
 import logging
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, date
 
 # ─────────────────────────────────────────────
@@ -15,6 +19,11 @@ from datetime import datetime, date
 
 TELEGRAM_BOT_TOKEN = "8681089221:AAEJISrx7ppZOchHjtOiFoSGg0mMIr20iao"
 TELEGRAM_CHAT_ID   = "8011613197"
+
+# 📧 Gmail Ayarları
+EMAIL_SENDER   = "nagmatberdiyev@gmail.com"
+EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD", "")  # Railway'de Variable olarak ekle
+EMAIL_RECEIVER = "nagmatberdiyev@gmail.com"
 
 # 11 = Ashgabat Normal, 12 = Ashgabat VIP
 OFFICE_IDS = [11, 12]
@@ -67,109 +76,46 @@ def send_telegram(message: str):
         log.error(f"Telegram gönderilemedi: {e}")
 
 
-def get_available_slots(office_id: int, month: str = None) -> list:
-    """Siteyi HTTP ile çeker, müsait günleri döndürür."""
-    from bs4 import BeautifulSoup
-
-    url = f"{BASE_URL}/calendar/{office_id}"
-    if month:
-        url += f"?month={month}"
-
+def send_email(office_name: str, new_slots: set, now_str: str, office_id: int):
+    """Gmail SMTP ile e-posta bildirimi gönderir."""
     try:
-        r = requests.get(url, headers=HEADERS, timeout=20)
-        if r.status_code != 200:
-            log.warning(f"HTTP {r.status_code} — {url}")
-            return []
-    except Exception as e:
-        log.warning(f"Bağlantı hatası: {e}")
-        return []
+        slots_list = "".join(f"<li>📅 {s}</li>" for s in sorted(new_slots))
 
-    soup = BeautifulSoup(r.text, "html.parser")
-    available = []
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px;">
+            <div style="max-width: 500px; margin: auto; background: white; border-radius: 10px; padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                <h2 style="color: #e74c3c;">🚨 YENİ RANDEVU SLOTU!</h2>
+                <p><strong>🏢 Ofis:</strong> {office_name}</p>
+                <p><strong>⏰ Tarih:</strong> {now_str}</p>
+                <hr>
+                <p><strong>📅 Müsait Tarihler:</strong></p>
+                <ul style="line-height: 2;">
+                    {slots_list}
+                </ul>
+                <hr>
+                <a href="{BASE_URL}/calendar/{office_id}"
+                   style="display: inline-block; margin-top: 10px; padding: 12px 24px;
+                          background: #2ecc71; color: white; text-decoration: none;
+                          border-radius: 6px; font-weight: bold;">
+                    🔗 Randevu Al
+                </a>
+                <p style="margin-top: 20px; color: #999; font-size: 12px;">
+                    Bu bildirim Mosaic Visa Takip Botu tarafından gönderilmiştir.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
 
-    months_en = ["January","February","March","April","May","June",
-                 "July","August","September","October","November","December"]
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"🚨 Yeni Randevu Slotu — {office_name}"
+        msg["From"]    = EMAIL_SENDER
+        msg["To"]      = EMAIL_RECEIVER
+        msg.attach(MIMEText(html_body, "html"))
 
-    # Tüm hücreleri tara
-    for cell in soup.find_all(["td", "tr", "div", "li", "a"]):
-        text = cell.get_text(separator=" ", strip=True)
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
+            server.sendmail(EMAIL_SENDER, EMAIL_RECEIVER, msg.as_string())
 
-        has_date = any(m in text for m in months_en) and "2026" in text
-        has_reserved = "Reserved" in text
-
-        if has_date and not has_reserved and len(text) < 60:
-            date_str = text.strip()
-            if date_str and date_str not in available:
-                available.append(date_str)
-
-    return available
-
-
-def get_months() -> list:
-    """Bu ay + MONTHS_AHEAD ay ilerisi."""
-    months = [None]
-    now = date.today()
-    for i in range(1, MONTHS_AHEAD + 1):
-        m = now.month + i
-        y = now.year + (m - 1) // 12
-        m = ((m - 1) % 12) + 1
-        months.append(f"{y}-{m:02d}")
-    return months
-
-
-def main():
-    log.info("=" * 50)
-    log.info("🤖 Mosaic Visa Bot Başlatıldı (Cloud)")
-    log.info(f"   Ofisler : {[OFFICE_NAMES.get(i) for i in OFFICE_IDS]}")
-    log.info(f"   Aralık  : Her {CHECK_INTERVAL_MINUTES} dakika")
-    log.info("=" * 50)
-
-    send_telegram(
-        "🤖 <b>Mosaic Visa Bot Başlatıldı</b>\n"
-        f"📍 {', '.join(OFFICE_NAMES.get(i,'') for i in OFFICE_IDS)}\n"
-        f"🕐 Her {CHECK_INTERVAL_MINUTES} dakikada kontrol ediyorum..."
-    )
-
-    previously_available = {oid: set() for oid in OFFICE_IDS}
-    check_count = 0
-
-    while True:
-        check_count += 1
-        now_str = datetime.now().strftime("%d.%m.%Y %H:%M")
-        log.info(f"\n🔍 Kontrol #{check_count} — {now_str}")
-
-        for office_id in OFFICE_IDS:
-            office_name = OFFICE_NAMES.get(office_id, str(office_id))
-            all_slots = []
-
-            for month in get_months():
-                slots = get_available_slots(office_id, month)
-                all_slots.extend(slots)
-                time.sleep(1)
-
-            all_slots_set = set(all_slots)
-            new_slots = all_slots_set - previously_available[office_id]
-
-            if all_slots:
-                log.info(f"✅ {office_name}: {len(all_slots)} müsait slot")
-            else:
-                log.info(f"❌ {office_name}: Müsait slot yok")
-
-            if new_slots:
-                slots_text = "\n".join(f"  📅 {s}" for s in sorted(new_slots))
-                send_telegram(
-                    f"🚨 <b>YENİ RANDEVU SLOTU!</b>\n\n"
-                    f"🏢 <b>{office_name}</b>\n"
-                    f"🔗 <a href='{BASE_URL}/calendar/{office_id}'>Randevu Al</a>\n\n"
-                    f"<b>Müsait Tarihler:</b>\n{slots_text}\n\n"
-                    f"⏰ {now_str}"
-                )
-
-            previously_available[office_id] = all_slots_set
-
-        log.info(f"💤 {CHECK_INTERVAL_MINUTES} dakika bekleniyor...")
-        time.sleep(CHECK_INTERVAL_MINUTES * 60)
-
-
-if __name__ == "__main__":
-    main()
+        log.info("✅ E-posta bil
