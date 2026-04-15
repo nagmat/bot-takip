@@ -4,18 +4,14 @@ Mosaic Visa Randevu Takip Botu - Cloud Versiyonu
 
 import os
 import time
-import smtplib
 import requests
 import logging
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from datetime import datetime, date
 
 TELEGRAM_BOT_TOKEN = "8681089221:AAEJISrx7ppZOchHjtOiFoSGg0mMIr20iao"
 TELEGRAM_CHAT_ID   = "8011613197"
 
-EMAIL_SENDER    = "nagmatberdiyev@gmail.com"
-EMAIL_PASSWORD  = os.environ.get("EMAIL_PASSWORD", "")
+RESEND_API_KEY  = os.environ.get("RESEND_API_KEY", "")
 EMAIL_RECEIVERS = ["nagmatberdiyev@gmail.com", "payhasacademy@gmail.com"]
 
 OFFICE_IDS = [11, 12]
@@ -87,20 +83,25 @@ def send_email(office_name, new_slots, now_str, office_id):
         </html>
         """
 
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = "Yeni Randevu Slotu - " + office_name
-        msg["From"]    = EMAIL_SENDER
-        msg["To"]      = ", ".join(EMAIL_RECEIVERS)
-        msg.attach(MIMEText(html_body, "html"))
+        response = requests.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": "Bearer " + RESEND_API_KEY,
+                "Content-Type": "application/json"
+            },
+            json={
+                "from": "Mosaic Bot <onboarding@resend.dev>",
+                "to": EMAIL_RECEIVERS,
+                "subject": "Yeni Randevu Slotu - " + office_name,
+                "html": html_body
+            },
+            timeout=15
+        )
 
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_SENDER, EMAIL_RECEIVERS, msg.as_string())
-
-        log.info("E-posta gonderildi.")
+        if response.status_code == 200:
+            log.info("E-posta gonderildi.")
+        else:
+            log.error("E-posta hatasi: " + str(response.status_code) + " " + response.text)
 
     except Exception as e:
         log.error("E-posta gonderilemedi: " + str(e))
