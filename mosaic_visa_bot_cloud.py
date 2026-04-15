@@ -12,7 +12,7 @@ TELEGRAM_BOT_TOKEN = "8681089221:AAEJISrx7ppZOchHjtOiFoSGg0mMIr20iao"
 TELEGRAM_CHAT_ID   = "8011613197"
 
 RESEND_API_KEY  = os.environ.get("RESEND_API_KEY", "")
-EMAIL_RECEIVERS = ["nagmatberdiyev@gmail.com", "payhasacademy@gmail.com"]
+EMAIL_RECEIVERS = ["nagmatberdiyev@gmail.com"]
 
 OFFICE_IDS = [11, 12]
 CHECK_INTERVAL_MINUTES = 5
