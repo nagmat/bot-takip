@@ -9,7 +9,7 @@ import logging
 from datetime import datetime, date
 
 TELEGRAM_BOT_TOKEN = "8681089221:AAEJISrx7ppZOchHjtOiFoSGg0mMIr20iao"
-TELEGRAM_CHAT_ID   = "8011613197"
+TELEGRAM_CHAT_IDS  = ["8011613197", "894826660"]
 
 RESEND_API_KEY  = os.environ.get("RESEND_API_KEY", "")
 EMAIL_RECEIVERS = ["nagmatberdiyev@gmail.com"]
@@ -40,20 +40,21 @@ log = logging.getLogger(__name__)
 
 
 def send_telegram(message):
-    url = "https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/sendMessage"
-    payload = {
-        "chat_id": TELEGRAM_CHAT_ID,
-        "text": message,
-        "parse_mode": "HTML",
-    }
-    try:
-        r = requests.post(url, json=payload, timeout=15)
-        if r.status_code == 200:
-            log.info("Telegram bildirimi gonderildi.")
-        else:
-            log.warning("Telegram hatasi: " + str(r.status_code))
-    except Exception as e:
-        log.error("Telegram gonderilemedi: " + str(e))
+    for chat_id in TELEGRAM_CHAT_IDS:
+        url = "https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": "HTML",
+        }
+        try:
+            r = requests.post(url, json=payload, timeout=15)
+            if r.status_code == 200:
+                log.info("Telegram bildirimi gonderildi: " + chat_id)
+            else:
+                log.warning("Telegram hatasi " + chat_id + ": " + str(r.status_code))
+        except Exception as e:
+            log.error("Telegram gonderilemedi " + chat_id + ": " + str(e))
 
 
 def send_email(office_name, new_slots, now_str, office_id):
