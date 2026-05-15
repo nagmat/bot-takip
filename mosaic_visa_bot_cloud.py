@@ -8,10 +8,10 @@ import requests
 import logging
 from datetime import datetime, date
 
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 TELEGRAM_CHAT_IDS = [
     chat_id.strip()
-    for chat_id in os.environ.get("TELEGRAM_CHAT_IDS", "8011613197,894826660").split(",")
+    for chat_id in os.environ.get("TELEGRAM_CHAT_IDS", "").split(",")
     if chat_id.strip()
 ]
 
@@ -47,6 +47,9 @@ log = logging.getLogger(__name__)
 def send_telegram(message):
     if not TELEGRAM_BOT_TOKEN:
         log.warning("TELEGRAM_BOT_TOKEN tanimli degil, Telegram bildirimi atlandi.")
+        return
+    if not TELEGRAM_CHAT_IDS:
+        log.warning("TELEGRAM_CHAT_IDS tanimli degil, Telegram bildirimi atlandi.")
         return
 
     for chat_id in TELEGRAM_CHAT_IDS:
