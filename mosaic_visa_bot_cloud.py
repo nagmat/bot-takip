@@ -14,13 +14,14 @@ TELEGRAM_CHAT_IDS  = ["8011613197", "894826660"]
 RESEND_API_KEY  = os.environ.get("RESEND_API_KEY", "")
 EMAIL_RECEIVERS = ["nagmatberdiyev@gmail.com"]
 
-OFFICE_IDS = [11, 12]
+OFFICE_IDS = [11, 12, 20]
 CHECK_INTERVAL_MINUTES = 5
 MONTHS_AHEAD = 1
 
 OFFICE_NAMES = {
     11: "Ashgabat (Normal)",
     12: "Ashgabat (VIP)",
+    20: "Ashgabat Student Visa",
 }
 
 BASE_URL = "https://appointment.mosaicvisa.com"
