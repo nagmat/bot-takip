@@ -8,8 +8,12 @@ import requests
 import logging
 from datetime import datetime, date
 
-TELEGRAM_BOT_TOKEN = "8681089221:AAEJISrx7ppZOchHjtOiFoSGg0mMIr20iao"
-TELEGRAM_CHAT_IDS  = ["8011613197", "894826660"]
+TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHAT_IDS = [
+    chat_id.strip()
+    for chat_id in os.environ.get("TELEGRAM_CHAT_IDS", "8011613197,894826660").split(",")
+    if chat_id.strip()
+]
 
 RESEND_API_KEY  = os.environ.get("RESEND_API_KEY", "")
 EMAIL_RECEIVERS = ["nagmatberdiyev@gmail.com"]
@@ -41,6 +45,10 @@ log = logging.getLogger(__name__)
 
 
 def send_telegram(message):
+    if not TELEGRAM_BOT_TOKEN:
+        log.warning("TELEGRAM_BOT_TOKEN tanimli degil, Telegram bildirimi atlandi.")
+        return
+
     for chat_id in TELEGRAM_CHAT_IDS:
         url = "https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/sendMessage"
         payload = {
@@ -53,7 +61,7 @@ def send_telegram(message):
             if r.status_code == 200:
                 log.info("Telegram bildirimi gonderildi: " + chat_id)
             else:
-                log.warning("Telegram hatasi " + chat_id + ": " + str(r.status_code))
+                log.warning("Telegram hatasi " + chat_id + ": " + str(r.status_code) + " " + r.text)
         except Exception as e:
             log.error("Telegram gonderilemedi " + chat_id + ": " + str(e))
 
